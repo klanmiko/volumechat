@@ -1,147 +1,162 @@
 <!DOCTYPE html>
 <html lang="">
+
 <head>
     <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
     <link rel="stylesheet" href="main.css">
     <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
     <script type="application/javascript">
-        var canvas; 
-        var scene={objects:[]};
-        var mouse={x:0,y:0};
+        var canvas;
+        var scene = {
+            objects: []
+        };
+        var mouse = {
+            x: 0,
+            y: 0
+        };
         var ctx;
         var ws;
-        var debugplayerx,debugplayery,debugmousex,debugmousey;
-        var player={x:0,y:0,shape:"",name:""};
-        function logic(){
-            var vector = {x:mouse.x-canvas.width/2,y:mouse.y-canvas.height/2};
-            var angle = Math.atan2(vector.y,vector.x);
-            var mag = Math.sqrt(vector.x*vector.x+vector.y*vector.y);
-            mag=mag/20;
-            if(mag>10)
-                mag=10;
-            var velocity = {x:mag*Math.cos(angle),y:mag*Math.sin(angle)};
-            player.x+=Math.round(velocity.x);
-            player.y+=Math.round(velocity.y);
-            debugplayerx.innerHTML=player.x;
-            debugplayery.innerHTML=player.y;
+        var debugplayerx, debugplayery, debugmousex, debugmousey;
+        var player = {
+            x: 0,
+            y: 0,
+            shape: "",
+            name: ""
+        };
+
+        function logic() {
+            var vector = {
+                x: mouse.x - canvas.width / 2,
+                y: mouse.y - canvas.height / 2
+            };
+            var angle = Math.atan2(vector.y, vector.x);
+            var mag = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+            mag = mag / 20;
+            if (mag > 10)
+                mag = 10;
+            var velocity = {
+                x: mag * Math.cos(angle),
+                y: mag * Math.sin(angle)
+            };
+            player.x += Math.round(velocity.x);
+            player.y += Math.round(velocity.y);
+            debugplayerx.innerHTML = player.x;
+            debugplayery.innerHTML = player.y;
             ws.send(JSON.stringify(player));
         }
-        function input(evt){
+
+        function input(evt) {
             var rect = canvas.getBoundingClientRect();
-            mouse.x=evt.clientX-rect.left;
-            mouse.y=evt.clientY-rect.top;
-            debugmousex.innerHTML=mouse.x;
-            debugmousey.innerHTML=mouse.y;
+            mouse.x = evt.clientX - rect.left;
+            mouse.y = evt.clientY - rect.top;
+            debugmousex.innerHTML = mouse.x;
+            debugmousey.innerHTML = mouse.y;
         }
         var renderid;
         var loopid;
-        $(function(){
+        $(function() {
             $("#login").submit(submitfunc);
             canvas = document.getElementById("interactable");
-            debugmousex=document.getElementById("mousex");
-                        debugmousey=document.getElementById("mousey");
-                        debugplayerx=document.getElementById("playerx");
-            debugplayery=document.getElementById("playery");
+            debugmousex = document.getElementById("mousex");
+            debugmousey = document.getElementById("mousey");
+            debugplayerx = document.getElementById("playerx");
+            debugplayery = document.getElementById("playery");
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            canvas.onmousemove=input;
+            canvas.onmousemove = input;
             ctx = canvas.getContext('2d');
-                ws= new WebSocket("ws://localhost:783");
-                ws.onmessage = function(event) {
-                    if(event.data!=undefined&&event.data!="")
-                    {
+            ws = new WebSocket("ws://localhost:783");
+            ws.onmessage = function(event) {
+                if (event.data != undefined && event.data != "") {
                     var msg = JSON.parse(event.data);
                     scene = msg;
-                        for(var x = 0;x<scene.objects.length;x++)
-                        {
-                            if(scene.objects[x].name==player.name){
-                                player = scene.objects[x];
-                                scene.objects.splice(x,1);
-                            }
+                    for (var x = 0; x < scene.objects.length; x++) {
+                        if (scene.objects[x].name == player.name) {
+                            player = scene.objects[x];
+                            scene.objects.splice(x, 1);
                         }
                     }
+                }
             }
-            renderid= window.setInterval(render,10);
-        }
-        );   
-        function render()
-        {
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            if(scene.objects!=undefined)
-            {
-                for(var x = 0;x<scene.objects.length;x++)
-                {
+            renderid = window.setInterval(render, 10);
+        });
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (scene.objects != undefined) {
+                for (var x = 0; x < scene.objects.length; x++) {
                     ctx.save();
-                    ctx.translate(scene.objects[x].x-player.x+canvas.width/2,scene.objects[x].y-player.y+canvas.height/2);
-                    switch(scene.objects[x].shape){
+                    ctx.translate(scene.objects[x].x - player.x + canvas.width / 2, scene.objects[x].y - player.y + canvas.height / 2);
+                    switch (scene.objects[x].shape) {
                         case "circle":
                             ctx.beginPath();
-                            ctx.arc(0,0,25,0,Math.PI*2,false);
-                            ctx.fillStyle="rgb(255,0,0)";
+                            ctx.arc(0, 0, 25, 0, Math.PI * 2, false);
+                            ctx.fillStyle = "rgb(255,0,0)";
                             ctx.fill();
                             break;
                         case "triangle":
                             ctx.beginPath();
-                            ctx.moveTo(-25,-25);
-                            ctx.lineTo(0,25);
-                            ctx.lineTo(25,-25);
-                            ctx.fillStyle="rgb(0,255,0)";
+                            ctx.moveTo(-25, -25);
+                            ctx.lineTo(0, 25);
+                            ctx.lineTo(25, -25);
+                            ctx.fillStyle = "rgb(0,255,0)";
                             ctx.fill();
                             break;
                         case "square":
-                            ctx.fillStyle="rgb(0,0,255)";
-                        ctx.fillRect(0,0,50,50);
+                            ctx.fillStyle = "rgb(0,0,255)";
+                            ctx.fillRect(0, 0, 50, 50);
                             break;
-                            
+
                     }
-                    ctx.fillStyle="rgb(0,0,0)";
-                    ctx.fillText(scene.objects[x].name,0,0);
+                    ctx.fillStyle = "rgb(0,0,0)";
+                    ctx.fillText(scene.objects[x].name, 0, 0);
                     ctx.restore();
                 }
                 ctx.save();
-                ctx.translate(canvas.width/2,canvas.height/2);
-                switch(player.shape)
-                {
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                switch (player.shape) {
                     case "circle":
-                            ctx.beginPath();
-                            ctx.arc(0,0,25,0,Math.PI*2,false);
-                            ctx.fillStyle="rgb(255,0,0)";
-                            ctx.fill();
-                            break;
-                        case "triangle":
-                            ctx.beginPath();
-                            ctx.moveTo(-25,-25);
-                            ctx.lineTo(0,25);
-                            ctx.lineTo(25,-25);
-                            ctx.fillStyle="rgb(0,255,0)";
-                            ctx.fill();
-                            break;
-                        case "square":
-                            ctx.fillStyle="rgb(0,0,255)";
-                        ctx.fillRect(0,0,50,50);
-                            break;    
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 25, 0, Math.PI * 2, false);
+                        ctx.fillStyle = "rgb(255,0,0)";
+                        ctx.fill();
+                        break;
+                    case "triangle":
+                        ctx.beginPath();
+                        ctx.moveTo(-25, -25);
+                        ctx.lineTo(0, 25);
+                        ctx.lineTo(25, -25);
+                        ctx.fillStyle = "rgb(0,255,0)";
+                        ctx.fill();
+                        break;
+                    case "square":
+                        ctx.fillStyle = "rgb(0,0,255)";
+                        ctx.fillRect(0, 0, 50, 50);
+                        break;
                 }
                 ctx.restore();
             }
         }
-        function startgame(event)
-        { 
+
+        function startgame(event) {
             player.x = event.x;
             player.y = event.y;
             player.shape = event.shape;
-            player.name=event.name;
-            loopid= window.setInterval(logic,10);
+            player.name = event.name;
+            loopid = window.setInterval(logic, 10);
         }
-        function submitfunc(event)
-        {
+
+        function submitfunc(event) {
             $("#overlay").hide();
-            var tosend = {name:"", icon:""};
+            var tosend = {
+                name: "",
+                icon: ""
+            };
             tosend.name = $("#name").val();
             tosend.icon = $('input[name=icon]:checked', '#login').val();
-            $.getJSON("http://localhost:784",tosend,startgame);
+            $.getJSON("http://localhost:784", tosend, startgame);
             return false;
         }
-        
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,  user-scalable=no, initial-scale=1.0">
@@ -153,26 +168,26 @@
         <div id="sign-in">
             <h1 id="bannertext">Sign-in</h1>
             <div id="innercontent">
-            <form class="pure-form" id="login">
-                <div class="form-element">
-                <label for="name">Name</label>
-                <input type="text" id="name" name="name" placeholder="Name" required>
-                </div>
-                <div class="">
-                    <label for="square">Square</label>
-                <input type="radio" name="icon" value="square" id="square" checked required>
-                    <label for="circle">Circle</label>
-                <input type="radio" name="icon" id="circle" value="circle">
-                    <label for="triangle">Triangle</label>
-                <input type="radio" name="icon" id="triangle" value="triangle">
-                </div>
-                <div class="form-element">
-                <input type="submit" class="pure-button pure-button-primary" value="Submit">
-                </div>
-            </form>
+                <form class="pure-form" id="login">
+                    <div class="form-element">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" placeholder="Name" required>
+                    </div>
+                    <div class="">
+                        <label for="square">Square</label>
+                        <input type="radio" name="icon" value="square" id="square" checked required>
+                        <label for="circle">Circle</label>
+                        <input type="radio" name="icon" id="circle" value="circle">
+                        <label for="triangle">Triangle</label>
+                        <input type="radio" name="icon" id="triangle" value="triangle">
+                    </div>
+                    <div class="form-element">
+                        <input type="submit" class="pure-button pure-button-primary" value="Submit">
+                    </div>
+                </form>
             </div>
         </div>
-        
+
     </div>
     <div id="debugoverlay">
         <p id="playerx"></p>
@@ -183,5 +198,6 @@
     <canvas id="interactable">
     </canvas>
 </body>
+
 </html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
