@@ -46,3 +46,14 @@
     height:100%;
     z-index: 1;
 }
+
+#debugoverlay {
+    position: absolute;
+    z-index: 3;
+    height: 100px;
+    width: 50px;
+    left:0;
+    top:0;
+    display:block;
+    
+}

@@ -41,8 +41,6 @@ wss.on('connection', function connection(ws) {
       {
           
       }
-      console.log("data :")
-      console.log(msg);
    for(var x = 0; x<scene.objects.length;x++)
    {
        if(scene.objects[x].name == msg.name)
@@ -54,7 +52,6 @@ wss.on('connection', function connection(ws) {
   ws.send(JSON.stringify(scene));
 });
 setInterval(function(){
-    console.log("broadcasting:")
-    console.log(scene);
+    
     wss.broadcast(JSON.stringify(scene));
-},30);
+},10);
