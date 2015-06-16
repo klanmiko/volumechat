@@ -50,8 +50,8 @@
 #debugoverlay {
     position: absolute;
     z-index: 3;
-    height: 100px;
-    width: 50px;
+    height: 10px;
+    width: 500px;
     left:0;
     top:0;
     display:block;

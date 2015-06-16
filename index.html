@@ -10,6 +10,9 @@
         var scene = {
             objects: []
         };
+        var networkscene = {
+            objects: []
+        };
         var mouse = {
             x: 0,
             y: 0
@@ -17,40 +20,183 @@
         var ctx;
         var ws;
         var debugplayerx, debugplayery, debugmousex, debugmousey;
+        var networktime, rendertime;
         var player = {
             x: 0,
             y: 0,
             shape: "",
-            name: ""
+            name: "",
+            lag: 0,
+            timestamp: 0,
+            velocity: {
+                x: 0,
+                y: 0
+            }
         };
+        var networkplayer = {
+            x: 0,
+            y: 0,
+            shape: "",
+            name: "",
+            lag: "",
+            velocity: {
+                x: 0,
+                y: 0
+            },
+            timestamp: 0
+        };
+        var networkplayernew;
+        var lastprocess = Date.now();
+        var que = [];
+        var interpolateval = 5;
+
+        function drawdebuggrid(context) {
+            var width = canvas.width;
+            var height = canvas.height;
+            context.save();
+            context.translate(0 - player.x + canvas.width, 0 - player.y + canvas.height);
+            for (var x = 1; x < 50; x++) {
+                context.beginPath();
+                context.moveTo(x * 50, 0);
+                context.lineTo(x * 50, 15000);
+                context.stroke();
+            }
+            for (var y = 1; y < 15; y++) {
+                context.beginPath();
+                context.moveTo(0, y * 50);
+                context.lineTo(15000, y * 50);
+                context.stroke();
+            }
+            context.restore();
+        }
+        var movevector = {
+            x: 0,
+            y: 0
+        };
+        var scenevectors = [];
 
         function logic() {
+            var delta = Date.now() - lastprocess;
+            if (player.x == NaN) {
+                player.x = networkplayer.x;
+            }
+            if (player.y == NaN) {
+                player.y = networkplayer.y;
+            }
+            player.timestamp++;
             var vector = {
                 x: mouse.x - canvas.width / 2,
                 y: mouse.y - canvas.height / 2
             };
             var angle = Math.atan2(vector.y, vector.x);
             var mag = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-            mag = mag / 20;
-            if (mag > 10)
-                mag = 10;
-            var velocity = {
-                x: mag * Math.cos(angle),
-                y: mag * Math.sin(angle)
+            mag = mag * 10;
+            if (mag > 500)
+                mag = 500;
+            var pulse = {
+                velocity: {
+                    x: mag * Math.cos(angle),
+                    y: mag * Math.sin(angle)
+                },
+                lag: delta,
+                timestamp: player.timestamp,
+                name: player.name
             };
-            player.x += Math.round(velocity.x);
-            player.y += Math.round(velocity.y);
-            debugplayerx.innerHTML = player.x;
-            debugplayery.innerHTML = player.y;
-            ws.send(JSON.stringify(player));
+            que.push(pulse);
+            player.lag = delta;
+            debugmousey.innerHTML = "player lag " + delta;
+            lastprocess = Date.now();
+            ws.send(JSON.stringify(pulse));
+            ferpolate();
+            var larp = (Date.now() - networktime) / (interpolateval);
+            player.x += movevector.x * interpolateval / 1000;
+            player.y += movevector.y * interpolateval / 1000;
+            var lerp = (Date.now() - networktime) / (delta);
+            for (var x = 0; x < scenevectors.length; x++) {
+                scene.objects[x].x += scenevectors[x].x * interpolatevale / 1000;
+                scene.objects[x].y += scenevectors[x].y * interpolatevale / 1000;
+            }
+        }
+        var interpolatevale = 200;
+        var lock = false;
+
+        function ferpolate() {
+            while (lock) {
+
+            }
+            if (que.length > 0) {
+                var truestate = networkplayer;
+                interpolateval = 200;
+                for (var x = 0; x < que.length; x++) {
+                    truestate.x += que[x].velocity.x * que[x].lag / 1000;
+                    truestate.y += que[x].velocity.y * que[x].lag / 1000;
+                    //interpolateval += que[x].lag;
+                }
+                movevector = {
+                    x: truestate.x - player.x,
+                    y: truestate.y - player.y
+                };
+            } else {
+                console.log("nothing in queue");
+                interpolateval = 200;
+            }
+        }
+
+        function interpolate() {
+            lock = true;
+            if (networkplayernew == undefined) {
+                networkplayernew = networkplayer;
+            }
+            if (que.length > 0) {
+                var truestate = networkplayer;
+                var number = 0;
+                console.log(que);
+                for (var x = 0; x < que.length; x++) {
+                    if (que[x].timestamp <= networkplayernew.timestamp) {
+                        number++;
+                        truestate.x += que[x].velocity.x * que[x].lag / 1000;
+                        truestate.y += que[x].velocity.y * que[x].lag / 1000;
+                    } else {
+                        break;
+                    }
+                    //interpolateval += que[x].lag;
+                }
+                que.splice(0, number);
+                if (Math.abs(networkplayernew.x - truestate.x) > 10 || Math.abs(networkplayernew.y - truestate.y) > 10) {
+                    player.x = networkplayernew.x;
+                    player.y = networkplayernew.y;
+                    que = [];
+                }
+                networkplayer = networkplayernew;
+            } else {
+                interpolateval = 200;
+            }
+            lock = false;
+        }
+
+        function interpolaterest() {
+            extrapolate(50);
+            for (var x = 0; x < networkscene.objects.length; x++) {
+                var vector = {
+                    x: networkscene.objects[x].x - scene.objects[x].x,
+                    y: networkscene.objects[x].y - scene.objects[x].y
+                };
+                scenevectors[x] = vector;
+
+            }
+        }
+
+        function extrapolate(delta) {
+            for (var x = 0; x < scene.objects.length; x++) {
+                scene.objects[x].x += scene.objects[x].velocity.x * delta / 1000;
+                scene.objects[x].y += scene.objects[x].velocity.y * delta / 1000;
+            }
         }
 
         function input(evt) {
             var rect = canvas.getBoundingClientRect();
             mouse.x = evt.clientX - rect.left;
             mouse.y = evt.clientY - rect.top;
-            debugmousex.innerHTML = mouse.x;
-            debugmousey.innerHTML = mouse.y;
         }
         var renderid;
         var loopid;
@@ -64,29 +210,59 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             canvas.onmousemove = input;
+            canvas.addEventListener("networkupdate", function() {
+                interpolate();
+            }, false);
+            canvas.addEventListener("packet", function() {
+                interpolaterest();
+            });
             ctx = canvas.getContext('2d');
             ws = new WebSocket("ws://localhost:783");
             ws.onmessage = function(event) {
+                var now = Date.now();
                 if (event.data != undefined && event.data != "") {
                     var msg = JSON.parse(event.data);
-                    scene = msg;
-                    for (var x = 0; x < scene.objects.length; x++) {
-                        if (scene.objects[x].name == player.name) {
-                            player = scene.objects[x];
-                            scene.objects.splice(x, 1);
+                    if (msg.type == "scene") {
+                        networkscene = msg;
+                        if (scene.objects.length != networkscene.objects.length || scene.objects == undefined) {
+                            scene = networkscene;
                         }
+                        for (var x = 0; x < networkscene.objects.length; x++) {
+                            if (networkscene.objects[x].name == player.name) {
+                                networkplayernew = networkscene.objects[x];
+                                //networkscene.objects.splice(x, 1);
+                                event = new Event("packet");
+                                canvas.dispatchEvent(event);
+                                event = new Event("networkupdate");
+                                canvas.dispatchEvent(event);
+                            }
+                        }
+                    } else if (msg.type == "player") {
+                        networkplayernew = msg.player;
+                        event = new Event("networkupdate");
+                        canvas.dispatchEvent(event);
+                    } else if (msg.type == "update") {
+                        networkscene = msg.scene;
+                        scene = networkscene;
                     }
+                    debugmousex.innerHTML = "packet time " + (now - networktime);
+                    networktime = Date.now();
                 }
-            }
-            renderid = window.setInterval(render, 10);
+            };
+            renderid = window.setInterval(render, 30);
         });
 
         function render() {
+            var delta = Date.now() - rendertime;
+            var now = Date.now();
+            debugplayerx.innerHTML = "movex " + movevector.x;
+            debugplayery.innerHTML = "movey " + movevector.y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawdebuggrid(ctx);
             if (scene.objects != undefined) {
                 for (var x = 0; x < scene.objects.length; x++) {
                     ctx.save();
-                    ctx.translate(scene.objects[x].x - player.x + canvas.width / 2, scene.objects[x].y - player.y + canvas.height / 2);
+                    ctx.translate(Math.round(scene.objects[x].x) - Math.round(player.x) + canvas.width / 2, Math.round(scene.objects[x].y) - Math.round(player.y) + canvas.height / 2);
                     switch (scene.objects[x].shape) {
                         case "circle":
                             ctx.beginPath();
@@ -136,6 +312,8 @@
                 }
                 ctx.restore();
             }
+            var then = Date.now();
+            rendertime = Date.now();
         }
 
         function startgame(event) {
@@ -143,6 +321,8 @@
             player.y = event.y;
             player.shape = event.shape;
             player.name = event.name;
+            player.timestamp = 0;
+            lastprocess = Date.now();
             loopid = window.setInterval(logic, 10);
         }
 
