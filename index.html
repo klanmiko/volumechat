@@ -19,6 +19,16 @@
         };
         var ctx;
         var ws;
+
+        function playercopy(player) {
+            this.x = player.x;
+            this.y = player.y;
+            this.name = player.name;
+            this.timestamp = player.timestamp;
+            this.lag = player.lag;
+            this.velocity = player.velocity;
+            this.shape = player.shape;
+        }
         var debugplayerx, debugplayery, debugmousex, debugmousey;
         var networktime, rendertime;
         var player = {
@@ -33,18 +43,7 @@
                 y: 0
             }
         };
-        var networkplayer = {
-            x: 0,
-            y: 0,
-            shape: "",
-            name: "",
-            lag: "",
-            velocity: {
-                x: 0,
-                y: 0
-            },
-            timestamp: 0
-        };
+        var networkplayer;
         var networkplayernew;
         var lastprocess = Date.now();
         var que = [];
@@ -95,8 +94,8 @@
                 mag = 500;
             var pulse = {
                 velocity: {
-                    x: mag * Math.cos(angle),
-                    y: mag * Math.sin(angle)
+                    x: Math.round(mag * Math.cos(angle)),
+                    y: Math.round(mag * Math.sin(angle))
                 },
                 lag: delta,
                 timestamp: player.timestamp,
@@ -106,16 +105,14 @@
             player.lag = delta;
             debugmousey.innerHTML = "player lag " + delta;
             lastprocess = Date.now();
-            ws.send(JSON.stringify(pulse));
             ferpolate();
             var larp = (Date.now() - networktime) / (interpolateval);
-            player.x += movevector.x * interpolateval / 1000;
-            player.y += movevector.y * interpolateval / 1000;
             var lerp = (Date.now() - networktime) / (delta);
             for (var x = 0; x < scenevectors.length; x++) {
                 scene.objects[x].x += scenevectors[x].x * interpolatevale / 1000;
                 scene.objects[x].y += scenevectors[x].y * interpolatevale / 1000;
             }
+            ws.send(JSON.stringify(pulse));
         }
         var interpolatevale = 200;
         var lock = false;
@@ -124,18 +121,42 @@
             while (lock) {
 
             }
+            if(networkplayernew==undefined){
+                networkplayernew=new playercopy(networkplayer);
+            }
             if (que.length > 0) {
-                var truestate = networkplayer;
+                var truestate = new playercopy(networkplayer);
+                var oldstate = new playercopy(networkplayer);
                 interpolateval = 200;
+                if (player.timestamp - networkplayer.timestamp != que.length) {
+                    console.log("syncerror");
+                }
+                var remove = 0;
                 for (var x = 0; x < que.length; x++) {
-                    truestate.x += que[x].velocity.x * que[x].lag / 1000;
-                    truestate.y += que[x].velocity.y * que[x].lag / 1000;
+                    truestate.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
+                    truestate.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
+                    if (que[x].timestamp <= networkplayernew.timestamp) {
+                        oldstate.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
+                        oldstate.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
+                        remove++;
+                    }
                     //interpolateval += que[x].lag;
                 }
-                movevector = {
-                    x: truestate.x - player.x,
-                    y: truestate.y - player.y
-                };
+                que.splice(0, remove);
+                networkplayer = new playercopy(networkplayernew);
+                if (Math.abs(networkplayernew.x - oldstate.x) > 5 || Math.abs(networkplayernew.y - oldstate.y) > 5) {
+                    console.log("why");
+                    player = new playercopy(networkplayernew);
+                    que=[];
+                } else {
+                    player.x = truestate.x;
+                    player.y = truestate.y;
+                    movevector = {
+                        x: 0,
+                        y: 0
+                    };
+                }
+
             } else {
                 console.log("nothing in queue");
                 interpolateval = 200;
@@ -143,35 +164,40 @@
         }
 
         function interpolate() {
-            lock = true;
-            if (networkplayernew == undefined) {
-                networkplayernew = networkplayer;
+            console.log("hi");
+            /*lock = true;
+            if (player.timestamp - networkplayer.timestamp != que.length) {
+                console.log("syncerror");
+            }
+            if (networkplayernew.timestamp == networkplayer.timestamp) {
+                console.log("wtf");
             }
             if (que.length > 0) {
-                var truestate = networkplayer;
-                var number = 0;
                 console.log(que);
+                var truestatev = networkplayer;
+                var number = 0;
+
                 for (var x = 0; x < que.length; x++) {
                     if (que[x].timestamp <= networkplayernew.timestamp) {
                         number++;
-                        truestate.x += que[x].velocity.x * que[x].lag / 1000;
-                        truestate.y += que[x].velocity.y * que[x].lag / 1000;
+                        truestatev.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
+                        truestatev.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
                     } else {
                         break;
                     }
                     //interpolateval += que[x].lag;
                 }
                 que.splice(0, number);
-                if (Math.abs(networkplayernew.x - truestate.x) > 10 || Math.abs(networkplayernew.y - truestate.y) > 10) {
-                    player.x = networkplayernew.x;
-                    player.y = networkplayernew.y;
-                    que = [];
+                if (Math.abs(networkplayernew.x - truestatev.x) > 10 || Math.abs(networkplayernew.y - truestatev.y) > 10) {
+                    console.log("why");
                 }
                 networkplayer = networkplayernew;
             } else {
+                console.log("nothing in queue");
                 interpolateval = 200;
             }
             lock = false;
+            */
         }
 
         function interpolaterest() {
@@ -229,8 +255,8 @@
                         }
                         for (var x = 0; x < networkscene.objects.length; x++) {
                             if (networkscene.objects[x].name == player.name) {
-                                networkplayernew = networkscene.objects[x];
-                                //networkscene.objects.splice(x, 1);
+                                networkplayernew = new playercopy(networkscene.objects[x]);
+                                networkscene.objects.splice(x, 1);
                                 event = new Event("packet");
                                 canvas.dispatchEvent(event);
                                 event = new Event("networkupdate");
@@ -238,7 +264,7 @@
                             }
                         }
                     } else if (msg.type == "player") {
-                        networkplayernew = msg.player;
+                        networkplayernew = new playercopy(msg.player);
                         event = new Event("networkupdate");
                         canvas.dispatchEvent(event);
                     } else if (msg.type == "update") {
@@ -258,7 +284,7 @@
             debugplayerx.innerHTML = "movex " + movevector.x;
             debugplayery.innerHTML = "movey " + movevector.y;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawdebuggrid(ctx);
+            //drawdebuggrid(ctx);
             if (scene.objects != undefined) {
                 for (var x = 0; x < scene.objects.length; x++) {
                     ctx.save();
@@ -322,6 +348,7 @@
             player.shape = event.shape;
             player.name = event.name;
             player.timestamp = 0;
+            networkplayer = new playercopy(player);
             lastprocess = Date.now();
             loopid = window.setInterval(logic, 10);
         }

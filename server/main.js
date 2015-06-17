@@ -93,18 +93,18 @@ wss.on('connection', function connection(ws) {
                         }
                     }
                 }
-                scene.objects[index].x += msg.velocity.x * (msg.lag) / 1000;
-                scene.objects[index].y += msg.velocity.y * (msg.lag) / 1000;
+                scene.objects[index].x += Math.round(msg.velocity.x * (msg.lag) / 1000);
+                scene.objects[index].y += Math.round(msg.velocity.y * (msg.lag) / 1000);
                 scene.objects[index].velocity = msg.velocity;
                 if(scene.objects[index].timestamp+1!=msg.timestamp)
                 {
                     console.log("missingpackets");
                 }
                 scene.objects[index].timestamp = msg.timestamp;
-                ws.send(JSON.stringify({
+                /*ws.send(JSON.stringify({
                     type: "player",
                     player: scene.objects[index]
-                }));
+                }));*/
             }
         } catch (error) {
             console.log("error in message");
