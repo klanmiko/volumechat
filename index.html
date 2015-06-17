@@ -122,11 +122,32 @@
 
             }
             if(networkplayernew==undefined){
-                networkplayernew=new playercopy(networkplayer);
+                networkplayernew={x:networkplayer.x,
+                                 y:networkplayer.y,
+                                 velocity:networkplayer.velocity,
+                                 lag:networkplayer.lag,
+                                 name:networkplayer.name,
+                                 shape:networkplayer.shape,
+                                 timestamp:networkplayer.timestamp
+                                };
             }
             if (que.length > 0) {
-                var truestate = new playercopy(networkplayer);
-                var oldstate = new playercopy(networkplayer);
+                var truestate = {x:networkplayer.x,
+                                 y:networkplayer.y,
+                                 velocity:networkplayer.velocity,
+                                 lag:networkplayer.lag,
+                                 name:networkplayer.name,
+                                 shape:networkplayer.shape,
+                                 timestamp:networkplayer.timestamp
+                                };
+                var oldstate = {x:networkplayer.x,
+                                 y:networkplayer.y,
+                                 velocity:networkplayer.velocity,
+                                 lag:networkplayer.lag,
+                                 name:networkplayer.name,
+                                 shape:networkplayer.shape,
+                                 timestamp:networkplayer.timestamp
+                                };
                 interpolateval = 200;
                 if (player.timestamp - networkplayer.timestamp != que.length) {
                     console.log("syncerror");
@@ -143,10 +164,24 @@
                     //interpolateval += que[x].lag;
                 }
                 que.splice(0, remove);
-                networkplayer = new playercopy(networkplayernew);
+                networkplayer = {x:networkplayernew.x,
+                                 y:networkplayernew.y,
+                                 velocity:networkplayernew.velocity,
+                                 lag:networkplayernew.lag,
+                                 name:networkplayernew.name,
+                                 shape:networkplayernew.shape,
+                                 timestamp:networkplayernew.timestamp
+                                };
                 if (Math.abs(networkplayernew.x - oldstate.x) > 5 || Math.abs(networkplayernew.y - oldstate.y) > 5) {
                     console.log("why");
-                    player = new playercopy(networkplayernew);
+                    player = {x:networkplayernew.x,
+                                 y:networkplayernew.y,
+                                 velocity:networkplayernew.velocity,
+                                 lag:networkplayernew.lag,
+                                 name:networkplayernew.name,
+                                 shape:networkplayernew.shape,
+                                 timestamp:networkplayernew.timestamp
+                                };
                     que=[];
                 } else {
                     player.x = truestate.x;
