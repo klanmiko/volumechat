@@ -4,6 +4,7 @@
 <head>
     <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
     <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
     <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
     <script type="application/javascript">
         var canvas;
@@ -17,8 +18,27 @@
             x: 0,
             y: 0
         };
+        var rooms;
         var ctx;
         var ws;
+        var id;
+        var roomid;
+        var chatsserver;
+        var chats;
+        var spacebar = false;
+
+        function sendtext() {
+            var text = $("#texttosend").val();
+            var msg = {
+                type: "chat",
+                auth: auth,
+                id: id,
+                roomid: roomid,
+                chat: text
+            };
+            chatsserver.send(JSON.stringify(msg));
+            $("#texttosend").val('');
+        }
 
         function playercopy(player) {
             this.x = player.x;
@@ -48,6 +68,8 @@
         var lastprocess = Date.now();
         var que = [];
         var interpolateval = 5;
+        var auth;
+        var state = 0;
 
         function drawdebuggrid(context) {
             var width = canvas.width;
@@ -99,7 +121,7 @@
                 },
                 lag: delta,
                 timestamp: player.timestamp,
-                name: player.name
+                name: player.name,
             };
             que.push(pulse);
             player.lag = delta;
@@ -108,90 +130,80 @@
             ferpolate();
             var larp = (Date.now() - networktime) / (interpolateval);
             var lerp = (Date.now() - networktime) / (delta);
-            for (var x = 0; x < scenevectors.length; x++) {
+            /*for (var x = 0; x < scenevectors.length; x++) {
                 scene.objects[x].x += scenevectors[x].x * interpolatevale / 1000;
                 scene.objects[x].y += scenevectors[x].y * interpolatevale / 1000;
-            }
+            }*/
+            extrapolate(delta);
+            pulse.type = "position";
+            pulse.id = id;
+            pulse.auth = auth;
             ws.send(JSON.stringify(pulse));
+            if (spacebar) {
+                ws.send(JSON.stringify({
+                    type: "spacebar",
+                    auth: auth,
+                    id: id,
+                    name: player.name
+                }));
+            }
         }
         var interpolatevale = 200;
         var lock = false;
 
-        function ferpolate() {
-            while (lock) {
-
+        function keyup(key) {
+            if (key.code == "Space") {
+                spacebar = false;
             }
-            if(networkplayernew==undefined){
-                networkplayernew={x:networkplayer.x,
-                                 y:networkplayer.y,
-                                 velocity:networkplayer.velocity,
-                                 lag:networkplayer.lag,
-                                 name:networkplayer.name,
-                                 shape:networkplayer.shape,
-                                 timestamp:networkplayer.timestamp
-                                };
+        }
+
+        function ferpolate() {
+            while (lock) {}
+            if (networkplayernew == undefined) {
+                networkplayernew = {
+                    x: networkplayer.x,
+                    y: networkplayer.y,
+                    velocity: networkplayer.velocity,
+                    lag: networkplayer.lag,
+                    name: networkplayer.name,
+                    shape: networkplayer.shape,
+                    timestamp: networkplayer.timestamp
+                };
             }
             if (que.length > 0) {
-                var truestate = {x:networkplayer.x,
-                                 y:networkplayer.y,
-                                 velocity:networkplayer.velocity,
-                                 lag:networkplayer.lag,
-                                 name:networkplayer.name,
-                                 shape:networkplayer.shape,
-                                 timestamp:networkplayer.timestamp
-                                };
-                var oldstate = {x:networkplayer.x,
-                                 y:networkplayer.y,
-                                 velocity:networkplayer.velocity,
-                                 lag:networkplayer.lag,
-                                 name:networkplayer.name,
-                                 shape:networkplayer.shape,
-                                 timestamp:networkplayer.timestamp
-                                };
+                var truestate = {
+                    x: networkplayer.x,
+                    y: networkplayer.y,
+                    velocity: networkplayer.velocity,
+                    lag: networkplayer.lag,
+                    name: networkplayer.name,
+                    shape: networkplayer.shape,
+                    timestamp: networkplayer.timestamp
+                };
+                var oldstate = {
+                    x: networkplayer.x,
+                    y: networkplayer.y,
+                    velocity: networkplayer.velocity,
+                    lag: networkplayer.lag,
+                    name: networkplayer.name,
+                    shape: networkplayer.shape,
+                    timestamp: networkplayer.timestamp
+                };
                 interpolateval = 200;
                 if (player.timestamp - networkplayer.timestamp != que.length) {
                     console.log("syncerror");
                 }
-                var remove = 0;
                 for (var x = 0; x < que.length; x++) {
                     truestate.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
                     truestate.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
-                    if (que[x].timestamp <= networkplayernew.timestamp) {
-                        oldstate.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
-                        oldstate.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
-                        remove++;
-                    }
                     //interpolateval += que[x].lag;
                 }
-                que.splice(0, remove);
-                networkplayer = {x:networkplayernew.x,
-                                 y:networkplayernew.y,
-                                 velocity:networkplayernew.velocity,
-                                 lag:networkplayernew.lag,
-                                 name:networkplayernew.name,
-                                 shape:networkplayernew.shape,
-                                 timestamp:networkplayernew.timestamp
-                                };
-                if (Math.abs(networkplayernew.x - oldstate.x) > 5 || Math.abs(networkplayernew.y - oldstate.y) > 5) {
-                    console.log("why");
-                    player = {x:networkplayernew.x,
-                                 y:networkplayernew.y,
-                                 velocity:networkplayernew.velocity,
-                                 lag:networkplayernew.lag,
-                                 name:networkplayernew.name,
-                                 shape:networkplayernew.shape,
-                                 timestamp:networkplayernew.timestamp
-                                };
-                    que=[];
-                } else {
-                    player.x = truestate.x;
-                    player.y = truestate.y;
-                    movevector = {
-                        x: 0,
-                        y: 0
-                    };
-                }
-
+                player.x = truestate.x;
+                player.y = truestate.y;
+                movevector = {
+                    x: 0,
+                    y: 0
+                };
             } else {
                 console.log("nothing in queue");
                 interpolateval = 200;
@@ -199,52 +211,41 @@
         }
 
         function interpolate() {
-            console.log("hi");
-            /*lock = true;
+            lock = true;
             if (player.timestamp - networkplayer.timestamp != que.length) {
                 console.log("syncerror");
             }
-            if (networkplayernew.timestamp == networkplayer.timestamp) {
-                console.log("wtf");
-            }
-            if (que.length > 0) {
-                console.log(que);
-                var truestatev = networkplayer;
-                var number = 0;
-
-                for (var x = 0; x < que.length; x++) {
-                    if (que[x].timestamp <= networkplayernew.timestamp) {
-                        number++;
-                        truestatev.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
-                        truestatev.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
-                    } else {
-                        break;
-                    }
-                    //interpolateval += que[x].lag;
+            if (networkplayernew.timestamp == networkplayer.timestamp) {}
+            var truestatev = new playercopy(networkplayer);
+            var number = 0;
+            for (var x = 0; x < que.length; x++) {
+                if (que[x].timestamp <= networkplayernew.timestamp) {
+                    number++;
+                    truestatev.x += Math.round(que[x].velocity.x * que[x].lag / 1000);
+                    truestatev.y += Math.round(que[x].velocity.y * que[x].lag / 1000);
+                } else {
+                    break;
                 }
-                que.splice(0, number);
-                if (Math.abs(networkplayernew.x - truestatev.x) > 10 || Math.abs(networkplayernew.y - truestatev.y) > 10) {
-                    console.log("why");
-                }
-                networkplayer = networkplayernew;
-            } else {
-                console.log("nothing in queue");
-                interpolateval = 200;
+                //interpolateval += que[x].lag;
             }
+            que.splice(0, number);
+            if (Math.abs(networkplayernew.x - truestatev.x) > 1 || Math.abs(networkplayernew.y - truestatev.y) > 1) {
+                console.log("why");
+            }
+            networkplayer = new playercopy(networkplayernew);
             lock = false;
-            */
+
         }
 
         function interpolaterest() {
-            extrapolate(50);
-            for (var x = 0; x < networkscene.objects.length; x++) {
+            /*for (var x = 0; x < networkscene.objects.length; x++) {
                 var vector = {
                     x: networkscene.objects[x].x - scene.objects[x].x,
                     y: networkscene.objects[x].y - scene.objects[x].y
                 };
                 scenevectors[x] = vector;
 
-            }
+            }*/
         }
 
         function extrapolate(delta) {
@@ -254,15 +255,100 @@
             }
         }
 
+        function connectToRoom() {
+            chatsserver = new WebSocket("ws://localhost:785");
+            chatsserver.onopen = function() {
+                $("#overlay").show();
+                $("#sign-in").hide();
+                $("#chat").show();
+                var params = {
+                    type: "connect",
+                    roomid: roomid,
+                    id: id,
+                    auth: auth
+                };
+                chatsserver.send(JSON.stringify(params));
+            };
+            chatsserver.onerror = function() {
+                window.alert("chat connection problem");
+            };
+            chatsserver.onclose = function() {
+                $("#chat").hide();
+                $("#overlay").hide();
+                ws.send(JSON.stringify({
+                    type: "reconnect",
+                    auth: auth,
+                    id: id
+                }));
+                loopid = window.setInterval(logic, 10);
+                renderid = window.setInterval(render, 30);
+                lastprocess = Date.now();
+            };
+            chatsserver.onmessage = function(event) {
+                try {
+                    var msg = JSON.parse(event.data);
+                    if (msg.type == "allchats") {
+                        chats = msg.chats;
+                        for (var z = 0; z < chats.length; z++) {
+                            var x = document.createElement("div");
+                            var c = document.createElement("p");
+                            if (chats[z].user.name == player.name) {
+                                x.style.textAlign = "right";
+                            } else {
+                                x.style.textAlign = "left";
+                            }
+                            c.innerHTML = chats[z].user.name + ": " + chats[z].text;
+                            x.appendChild(c);
+                            $("#chatscroll").append(x);
+                            $("#chatscroll").scrollTop($("#chatscroll")[0].scrollHeight);
+                        }
+                    } else if (msg.type == "chat") {
+                        chats.push(msg.chat);
+                        var x = document.createElement("div");
+                        var c = document.createElement("p");
+                        if (msg.chat.user.name == player.name) {
+                            x.style.textAlign = "right";
+                        } else {
+                            x.style.textAlign = "left";
+                        }
+                        c.innerHTML = msg.chat.user.name + ": " + msg.chat.text;
+                        x.appendChild(c);
+                        $("#chatscroll").append(x);
+                        $("#chatscroll").scrollTop($("#chatscroll")[0].scrollHeight);
+                    } else if (msg.type == "error") {
+                        console.log(msg.msg);
+                        chatsserver.close();
+                    } else if (msg.type == "disconnected") {
+                        var x = document.createElement("div");
+                        var c = document.createElement("p");
+                        x.style.textAlign = "center";
+                        c.innerHTML = msg.name + " has disconnected";
+                        x.appendChild(c);
+                    }
+                } catch (err) {
+                    console.log(err);
+                    chatsserver.close();
+                }
+            };
+        }
+
         function input(evt) {
             var rect = canvas.getBoundingClientRect();
             mouse.x = evt.clientX - rect.left;
             mouse.y = evt.clientY - rect.top;
         }
+
+        function disconnect() {
+            chatsserver.close();
+            chats = undefined;
+            roomid = undefined;
+        }
         var renderid;
         var loopid;
+        var accepted = false;
         $(function() {
             $("#login").submit(submitfunc);
+            $("#disconnect").click(disconnect);
             canvas = document.getElementById("interactable");
             debugmousex = document.getElementById("mousex");
             debugmousey = document.getElementById("mousey");
@@ -284,14 +370,14 @@
                 if (event.data != undefined && event.data != "") {
                     var msg = JSON.parse(event.data);
                     if (msg.type == "scene") {
-                        networkscene = msg;
-                        if (scene.objects.length != networkscene.objects.length || scene.objects == undefined) {
+                        scene = msg;
+                        /*if (scene.objects.length != networkscene.objects.length || scene.objects == undefined) {
                             scene = networkscene;
-                        }
-                        for (var x = 0; x < networkscene.objects.length; x++) {
-                            if (networkscene.objects[x].name == player.name) {
-                                networkplayernew = new playercopy(networkscene.objects[x]);
-                                networkscene.objects.splice(x, 1);
+                        }*/
+                        for (var x = 0; x < scene.objects.length; x++) {
+                            if (scene.objects[x].name == player.name) {
+                                networkplayernew = new playercopy(scene.objects[x]);
+                                scene.objects.splice(x, 1);
                                 event = new Event("packet");
                                 canvas.dispatchEvent(event);
                                 event = new Event("networkupdate");
@@ -303,92 +389,176 @@
                         event = new Event("networkupdate");
                         canvas.dispatchEvent(event);
                     } else if (msg.type == "update") {
-                        networkscene = msg.scene;
-                        scene = networkscene;
+                        scene = msg.scene;
+                        for (var x = 0; x < scene.objects.length; x++) {
+                            if (scene.objects[x].name == player.name) {
+
+                                scene.objects.splice(x, 1);
+                            }
+                        }
+                        //scene = networkscene;
+                    } else if (msg.type == "error") {
+                        window.alert(msg.msg);
+                    } else if (msg.type == "chatreq") {
+                        if (!accepted) {
+                            var result = window.confirm(msg.player + " wants to chat with you");
+                            if (result) {
+                                accepted = true;
+                                ws.send(JSON.stringify({
+                                    type: "accept",
+                                    auth: auth,
+                                    playerid: msg.id,
+                                    player: msg.player,
+                                    id: id
+                                }));
+                            }
+                        }
+                    } else if (msg.type == "chatmode") {
+                        window.clearInterval(renderid);
+                        window.clearInterval(loopid);
+                        player.velocity.x=0;
+                        player.velocity.y=0;
+                        roomid = msg.id;
+                        connectToRoom();
+                    } else if (msg.type == "expand") {
+                        for (var x = 0; x < rooms.objects.length; x++) {
+                            if (rooms.objects[x].id == msg.id) {
+                                rooms.objects[x].x = msg.x;
+                                rooms.objects[x].y = msg.y;
+                                rooms.objects[x].radius = msg.radius;
+                            }
+                        }
+                    } else if (msg.type == "newroom") {
+                        rooms.objects.push(msg.room);
+                    } else if (msg.type == "rooms") {
+                        rooms = msg.rooms;
                     }
-                    debugmousex.innerHTML = "packet time " + (now - networktime);
+
                     networktime = Date.now();
                 }
             };
             renderid = window.setInterval(render, 30);
         });
 
+        function keypress(key) {
+            if (key.code == "Space") {
+                spacebar = true;
+                console.log("space key pressed");
+            } else if (key.code == "Enter") {
+                sendtext();
+            }
+        }
+
+        function drawcircle() {
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2, false);
+            ctx.fillStyle = "rgb(255,0,0)";
+            ctx.fill();
+        }
+
+        function drawtriangle() {
+            ctx.beginPath();
+            ctx.moveTo(-25, -25);
+            ctx.lineTo(0, 25);
+            ctx.lineTo(25, -25);
+            ctx.fillStyle = "rgb(0,255,0)";
+            ctx.fill();
+        }
+
+        function drawrect() {
+            ctx.fillStyle = "rgb(0,0,255)";
+            ctx.fillRect(0, 0, 50, 50);
+        }
+
+        function drawRoom(room) {
+            ctx.save();
+            ctx.translate(Math.round(room.x) - Math.round(player.x) + canvas.width / 2, Math.round(room.y) - Math.round(player.y) + canvas.height / 2);
+            ctx.beginPath();
+            ctx.arc(0, 0, room.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = "rgb(" + room.color.r + "," + room.color.g + "," + room.color.b + ")";
+            ctx.fill();
+            ctx.fillStyle = "rgb(0,0,0)";
+            ctx.fillText(room.name, 0, 0);
+            ctx.restore();
+        }
+
         function render() {
             var delta = Date.now() - rendertime;
             var now = Date.now();
-            debugplayerx.innerHTML = "movex " + movevector.x;
-            debugplayery.innerHTML = "movey " + movevector.y;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             //drawdebuggrid(ctx);
+
             if (scene.objects != undefined) {
                 for (var x = 0; x < scene.objects.length; x++) {
                     ctx.save();
                     ctx.translate(Math.round(scene.objects[x].x) - Math.round(player.x) + canvas.width / 2, Math.round(scene.objects[x].y) - Math.round(player.y) + canvas.height / 2);
                     switch (scene.objects[x].shape) {
                         case "circle":
-                            ctx.beginPath();
-                            ctx.arc(0, 0, 25, 0, Math.PI * 2, false);
-                            ctx.fillStyle = "rgb(255,0,0)";
-                            ctx.fill();
+                            drawcircle();
                             break;
                         case "triangle":
-                            ctx.beginPath();
-                            ctx.moveTo(-25, -25);
-                            ctx.lineTo(0, 25);
-                            ctx.lineTo(25, -25);
-                            ctx.fillStyle = "rgb(0,255,0)";
-                            ctx.fill();
+                            drawtriangle();
                             break;
                         case "square":
-                            ctx.fillStyle = "rgb(0,0,255)";
-                            ctx.fillRect(0, 0, 50, 50);
+                            drawrect();
                             break;
-
                     }
                     ctx.fillStyle = "rgb(0,0,0)";
                     ctx.fillText(scene.objects[x].name, 0, 0);
                     ctx.restore();
                 }
+                if (rooms != undefined) {
+                    for (var y = 0; y < rooms.objects.length; y++) {
+                        drawRoom(rooms.objects[y]);
+                    }
+                }
                 ctx.save();
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 switch (player.shape) {
                     case "circle":
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 25, 0, Math.PI * 2, false);
-                        ctx.fillStyle = "rgb(255,0,0)";
-                        ctx.fill();
+                        drawcircle();
                         break;
                     case "triangle":
-                        ctx.beginPath();
-                        ctx.moveTo(-25, -25);
-                        ctx.lineTo(0, 25);
-                        ctx.lineTo(25, -25);
-                        ctx.fillStyle = "rgb(0,255,0)";
-                        ctx.fill();
+                        drawtriangle();
                         break;
                     case "square":
-                        ctx.fillStyle = "rgb(0,0,255)";
-                        ctx.fillRect(0, 0, 50, 50);
+                        drawrect();
                         break;
                 }
                 ctx.restore();
             }
+
             var then = Date.now();
             rendertime = Date.now();
         }
 
         function startgame(event) {
-            player.x = event.x;
-            player.y = event.y;
-            player.shape = event.shape;
-            player.name = event.name;
-            player.timestamp = 0;
-            networkplayer = new playercopy(player);
-            lastprocess = Date.now();
-            loopid = window.setInterval(logic, 10);
+            if (event.type != undefined) {
+                if (event.type == "error") {
+                    window.alert(event.msg);
+                    $("#overlay").show();
+                    $("#sign-in").show();
+                }
+            } else {
+                player.x = event.x;
+                player.y = event.y;
+                player.shape = event.shape;
+                player.name = event.name;
+                id = event.id;
+                auth = event.auth;
+                player.timestamp = 0;
+                networkplayer = new playercopy(player);
+                lastprocess = Date.now();
+                window.addEventListener("keydown", keypress, false);
+                window.addEventListener("keyup", keyup, false);
+                state = 1;
+                loopid = window.setInterval(logic, 10);
+            }
         }
 
         function submitfunc(event) {
+            $("#sign-in").hide();
             $("#overlay").hide();
             var tosend = {
                 name: "",
@@ -429,7 +599,17 @@
                 </form>
             </div>
         </div>
-
+        <div id="chat">
+            <div id="functions">
+                <button id="disconnect" class="pure-button actionbar">
+                    <i class="fa fa-times redcolor"></i>
+                </button>
+            </div>
+            <div id="chatscroll"></div>
+            <div id="textbar">
+                <input id="texttosend">
+            </div>
+        </div>
     </div>
     <div id="debugoverlay">
         <p id="playerx"></p>
@@ -442,4 +622,4 @@
 </body>
 
 </html>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport " content="width=device-width, initial-scale=1.0 ">
