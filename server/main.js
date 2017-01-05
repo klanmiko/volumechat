@@ -1,5 +1,5 @@
 var server = require("./httpserver.js");
 var httpserver = server.createServer();
-httpserver.listen(784);
-var ws = require("./gameserver.js");
-var chatserver = require("./chatservice.js");
+httpserver.listen(process.env.port||784);
+var ws = require("./gameserver.js")(httpserver);
+var chatserver = require("./chatservice.js")(httpserver);

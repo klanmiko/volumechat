@@ -256,7 +256,8 @@
         }
 
         function connectToRoom() {
-            chatsserver = new WebSocket("ws://localhost:785");
+            var loc = window.location;
+            chatsserver = new WebSocket("ws://"+loc.host+loc.pathname+"chat");
             chatsserver.onopen = function() {
                 $("#overlay").show();
                 $("#sign-in").hide();
@@ -275,6 +276,7 @@
             chatsserver.onclose = function() {
                 $("#chat").hide();
                 $("#overlay").hide();
+                $("#chatscroll").empty();
                 ws.send(JSON.stringify({
                     type: "reconnect",
                     auth: auth,
@@ -324,6 +326,16 @@
                         x.style.textAlign = "center";
                         c.innerHTML = msg.name + " has disconnected";
                         x.appendChild(c);
+                        $("#chatscroll").append(x);
+                        $("#chatscroll").scrollTop($("#chatscroll")[0].scrollHeight);
+                    } else if(msg.type == "userConnect"){
+                        var x = document.createElement("div");
+                        var c = document.createElement("p");
+                        x.style.textAlign = "center";
+                        c.innerHTML = msg.name + " has connected";
+                        x.appendChild(c);
+                        $("#chatscroll").append(x);
+                        $("#chatscroll").scrollTop($("#chatscroll")[0].scrollHeight);
                     }
                 } catch (err) {
                     console.log(err);
@@ -364,7 +376,7 @@
                 interpolaterest();
             });
             ctx = canvas.getContext('2d');
-            ws = new WebSocket("ws://localhost:783");
+            ws = new WebSocket("ws://"+window.location.host+window.location.pathname+"game");
             ws.onmessage = function(event) {
                 var now = Date.now();
                 if (event.data != undefined && event.data != "") {
@@ -566,7 +578,7 @@
             };
             tosend.name = $("#name").val();
             tosend.icon = $('input[name=icon]:checked', '#login').val();
-            $.getJSON("http://localhost:784", tosend, startgame);
+            $.getJSON("/connect", tosend, startgame);
             return false;
         }
     </script>

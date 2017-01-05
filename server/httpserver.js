@@ -5,9 +5,13 @@ var crypto = require('crypto');
 var url = require('url');
 var datastore = require('./datastore.js');
 var auth = require("./authsuite.js");
+var express = require("express");
 exports.createServer = function createserver() {
-    var server = http.createServer(function(req, res) {
-        var msg = url.parse(req.url, true).query;
+    var app = express();
+    console.log(__dirname);
+    app.use(express.static(__dirname + '/public'));
+    app.get('/connect',function(req,res){
+        var msg = req.query;
         var returnval;
         try {
             console.log(msg);
@@ -15,25 +19,23 @@ exports.createServer = function createserver() {
             datastore.addsceneobject(returnval);
         } catch (error) {
             if (error.message == "name exists") {
-                res.writeHead(200, {
+                res.status(200).set({
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*"
                 });
-                res.write(JSON.stringify({
+                res.send({
                     type: "error",
                     msg: "name taken"
-                }));
+                });
                 console.log("denied");
-                res.end();
                 return;
             }
             else{
                 console.log(error);
-                res.write(JSON.stringify({
+                res.status(504).send({
                     type: "error",
                     msg: "internal server error"
-                }));
-                res.end();
+                });
             }
         }
         var shasum = crypto.createHash('sha256');
@@ -45,7 +47,7 @@ exports.createServer = function createserver() {
         req.on('error', function() {
             console.error("error bitch in login");
         });
-        res.writeHead(200, {
+        res.status(200).set({
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*"
         });
@@ -54,16 +56,15 @@ exports.createServer = function createserver() {
             returnval.id = auth.addauthticket(x);
         } catch (err) {
             console.log(err.message);
-            res.write(JSON.stringify({
+            res.send({
                 type: "error",
                 msg: "internal server error"
-            }));
-            res.end();
+            });
             return;
         }
-        res.write(JSON.stringify(returnval));
-        res.end();
+        res.send(returnval);
     });
+    var server = http.createServer(app);
     if (server == undefined) {
         throw Error("undefined");
     }

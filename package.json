@@ -1,0 +1,23 @@
+{
+  "name": "volumechat",
+  "version": "1.0.0",
+  "description": "Chat service with spatial lobby.",
+  "main": "server/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/klanmiko/volumechat.git"
+  },
+  "author": "Kaelan Mikowicz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/klanmiko/volumechat/issues"
+  },
+  "homepage": "https://github.com/klanmiko/volumechat#readme",
+  "dependencies": {
+    "express": "^4.14.0",
+    "ws": "^1.1.1"
+  }
+}
