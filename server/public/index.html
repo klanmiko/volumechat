@@ -257,7 +257,8 @@
 
         function connectToRoom() {
             var loc = window.location;
-            chatsserver = new WebSocket("ws://"+loc.host+loc.pathname+"chat");
+            let host = location.origin.replace(/^http/, 'ws');
+            chatsserver = new WebSocket(host+"/chat");
             chatsserver.onopen = function() {
                 $("#overlay").show();
                 $("#sign-in").hide();
@@ -376,7 +377,8 @@
                 interpolaterest();
             });
             ctx = canvas.getContext('2d');
-            ws = new WebSocket("ws://"+window.location.host+window.location.pathname+"game");
+            let host = location.origin.replace(/^http/, 'ws');
+            ws = new WebSocket(host+"/game");
             ws.onmessage = function(event) {
                 var now = Date.now();
                 if (event.data != undefined && event.data != "") {
